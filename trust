@@ -1,0 +1,22 @@
+#!/bin/bash
+#### copy from remote machine to tmp ###
+echo "Enter user name: "
+read USER1
+echo "Enter server name: "
+read SERVER1
+
+echo "Enter user key: "
+read USERKEY1
+
+ssh $USER1@$SERVER1 sudo -S cat '/home/'$USERKEY1'/.ssh/id_rsa.pub > /tmp/ssh.txt'
+
+### copy from remot to local ###
+echo "Enter user name: "
+read USER2
+echo "Enter server name: "
+read SERVER2
+echo "Enter user key: "
+read USERKEY2
+scp $USER1@$SERVER1:/tmp/ssh.txt '/home/'$USERKEY2'/.ssh/'
+cat "/home/"$USERKEY2"/.ssh/ssh.txt" >> "/home/"$USERKEY1"/.ssh/authorized_keys"
+ssh-copy-id -i '/home/'$USERKEY1'/.ssh/id_rsa' $USER2@$SERVER2:/home/$USERKEY2/.ssh/id_rsa.pub
