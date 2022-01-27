@@ -11,12 +11,27 @@ read -p "Enter Destination Server:" DESTSRV
 
 read -p "Enter Destination User:" DESTUSER
 
-##ssh root@$DESTSRV "test -e /home/$DESTUSER/.ssh/authorized_keys"
-##if [ $? -eq 0 ];
-## then
 
- ssh root@$SOURSRV cat '/home/'$SOURUSER'/.ssh/id_rsa.pub' | ssh root@$DESTSRV -T "cat >> /home/"$DESTUSER"/.ssh/authorized_keys"
-
-## else
-## echo ""
-##fi
+options=("One way" "Back and Forth" "Quit")
+select opt in "${options[@]}"
+do
+    case $opt in
+        "One way")
+		ssh root@$SOURCE_SRV cat '/home/'$SOURCE_USER'/.ssh/id_rsa.pub' | ssh root@$DEST_SRV -T "cat >> /home/"$DEST_USER"/.ssh/authorized_keys"
+                break
+                ;;
+        "Back and Forth")
+		ssh root@$SOURCE_SRV cat '/home/'$SOURCE_USER'/.ssh/id_rsa.pub' | ssh root@$DEST_SRV -T "cat >> /home/"$DEST_USER"/.ssh/authorized_keys"
+		ssh root@$DEST_SRV cat '/home/'$DEST_USER'/.ssh/id_rsa.pub' | ssh root@$SOURCE_SRV -T "cat >> /home/"$SOURCE_USER"/.ssh/authorized_keys"
+                break
+                ;;
+        "Option 3")
+            echo "you chose choice $REPLY which is $opt"
+            ;;
+        "Quit")
+            exit
+            ;;
+        *) 
+	   echo "invalid option $REPLY";;
+    esac
+done
