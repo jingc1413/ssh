@@ -1,37 +1,105 @@
 #!/bin/bash
 
-
-### copy ssh-key to authorized keys in ather machine ###
-
+# 提示用户输入源服务器信息
 read -p "Enter Source Server: " SOURSRV
+read -p "Enter Source User: " SOURUSER
 
-read -p "Enter Source User:" SOURUSER
+# 提示用户输入目标服务器信息
+read -p "Enter Destination Server: " DESTSRV
+read -p "Enter Destination User: " DESTUSER
 
-read -p "Enter Destination Server:" DESTSRV
+# 定义生成 SSH 密钥对的函数
+generate_ssh_key() {
+    local server=$1
+    local user=$2
+    if [ "$user" = "root" ]; then
+        key_path="/root/.ssh/id_rsa"
+    else
+        key_path="/home/$user/.ssh/id_rsa"
+    fi
+    ssh "$user@$server" "[ ! -f $key_path ] && ssh-keygen -t rsa -N '' -f $key_path"
+    if [ $? -eq 0 ]; then
+        echo "SSH key generated on $user@$server."
+    else
+        echo "Error generating SSH key on $user@$server."
+    fi
+}
 
-read -p "Enter Destination User:" DESTUSER
-
-
+# 定义选项菜单
 options=("One way" "Back and Forth" "Quit")
 select opt in "${options[@]}"
 do
     case $opt in
         "One way")
-		ssh root@$SOURCE_SRV cat '/home/'$SOURCE_USER'/.ssh/id_rsa.pub' | ssh root@$DEST_SRV -T "cat >> /home/"$DEST_USER"/.ssh/authorized_keys"
-                break
-                ;;
+            # 生成源服务器的 SSH 密钥对（如果不存在）
+            generate_ssh_key "$SOURSRV" "$SOURUSER"
+            # 根据用户是否为 root 动态生成源公钥路径
+            if [ "$SOURUSER" = "root" ]; then
+                SOURCE_PUB_KEY_PATH="/root/.ssh/id_rsa.pub"
+            else
+                SOURCE_PUB_KEY_PATH="/home/$SOURUSER/.ssh/id_rsa.pub"
+            fi
+            # 根据用户是否为 root 动态生成目标授权密钥路径
+            if [ "$DESTUSER" = "root" ]; then
+                DEST_AUTH_KEYS_PATH="/root/.ssh/authorized_keys"
+            else
+                DEST_AUTH_KEYS_PATH="/home/$DESTUSER/.ssh/authorized_keys"
+            fi
+            # 复制源服务器公钥到目标服务器的授权密钥文件中
+            ssh "$SOURUSER@$SOURSRV" "cat $SOURCE_PUB_KEY_PATH" | ssh "$DESTUSER@$DESTSRV" "cat >> $DEST_AUTH_KEYS_PATH"
+            if [ $? -eq 0 ]; then
+                echo "One way SSH key copied successfully."
+            else
+                echo "Error copying SSH key one way."
+            fi
+            break
+            ;;
         "Back and Forth")
-		ssh root@$SOURCE_SRV cat '/home/'$SOURCE_USER'/.ssh/id_rsa.pub' | ssh root@$DEST_SRV -T "cat >> /home/"$DEST_USER"/.ssh/authorized_keys"
-		ssh root@$DEST_SRV cat '/home/'$DEST_USER'/.ssh/id_rsa.pub' | ssh root@$SOURCE_SRV -T "cat >> /home/"$SOURCE_USER"/.ssh/authorized_keys"
-                break
-                ;;
-        "Option 3")
-            echo "you chose choice $REPLY which is $opt"
+            # 生成源服务器的 SSH 密钥对（如果不存在）
+            generate_ssh_key "$SOURSRV" "$SOURUSER"
+            # 生成目标服务器的 SSH 密钥对（如果不存在）
+            generate_ssh_key "$DESTSRV" "$DESTUSER"
+            # 复制源服务器公钥到目标服务器的授权密钥文件中
+            if [ "$SOURUSER" = "root" ]; then
+                SOURCE_PUB_KEY_PATH="/root/.ssh/id_rsa.pub"
+            else
+                SOURCE_PUB_KEY_PATH="/home/$SOURUSER/.ssh/id_rsa.pub"
+            fi
+            if [ "$DESTUSER" = "root" ]; then
+                DEST_AUTH_KEYS_PATH="/root/.ssh/authorized_keys"
+            else
+                DEST_AUTH_KEYS_PATH="/home/$DESTUSER/.ssh/authorized_keys"
+            fi
+            ssh "$SOURUSER@$SOURSRV" "cat $SOURCE_PUB_KEY_PATH" | ssh "$DESTUSER@$DESTSRV" "cat >> $DEST_AUTH_KEYS_PATH"
+            if [ $? -eq 0 ]; then
+                echo "Source to destination SSH key copied successfully."
+            else
+                echo "Error copying SSH key from source to destination."
+            fi
+            # 复制目标服务器公钥到源服务器的授权密钥文件中
+            if [ "$DESTUSER" = "root" ]; then
+                DEST_PUB_KEY_PATH="/root/.ssh/id_rsa.pub"
+            else
+                DEST_PUB_KEY_PATH="/home/$DESTUSER/.ssh/id_rsa.pub"
+            fi
+            if [ "$SOURUSER" = "root" ]; then
+                SOURCE_AUTH_KEYS_PATH="/root/.ssh/authorized_keys"
+            else
+                SOURCE_AUTH_KEYS_PATH="/home/$SOURUSER/.ssh/authorized_keys"
+            fi
+            ssh "$DESTUSER@$DESTSRV" "cat $DEST_PUB_KEY_PATH" | ssh "$SOURUSER@$SOURSRV" "cat >> $SOURCE_AUTH_KEYS_PATH"
+            if [ $? -eq 0 ]; then
+                echo "Destination to source SSH key copied successfully."
+            else
+                echo "Error copying SSH key from destination to source."
+            fi
+            break
             ;;
         "Quit")
             exit
             ;;
         *) 
-	   echo "invalid option $REPLY";;
+            echo "Invalid option $REPLY"
+            ;;
     esac
-done
+done    
